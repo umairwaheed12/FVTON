@@ -1,4 +1,5 @@
 import threading
+import time
 
 from extras.inpaint_mask import generate_mask_from_image, SAMOptions
 from modules.patch import PatchSettings, patch_settings, patch_all
@@ -20,6 +21,7 @@ class AsyncTask:
         import args_manager
 
         self.args = args.copy()
+        self.start_time = time.perf_counter()
         self.yields = []
         self.results = []
         self.last_stop = False
@@ -222,15 +224,17 @@ def worker():
         print(e)
 
     def progressbar(async_task, number, text):
-        print(f'[Fooocus] {text}')
-        async_task.yields.append(['preview', (number, text, None)])
+        elapsed = time.perf_counter() - async_task.start_time
+        display_text = f'Processing... {elapsed:.1f}s'
+        print(f'[Fooocus] {display_text} (original: {text})')
+        async_task.yields.append(['preview', (number, display_text, None)])
 
     def yield_result(async_task, imgs, progressbar_index, black_out_nsfw, censor=True, do_not_show_finished_images=False):
         if not isinstance(imgs, list):
             imgs = [imgs]
 
         if censor and (modules.config.default_black_out_nsfw or black_out_nsfw):
-            progressbar(async_task, progressbar_index, 'Checking for NSFW content ...')
+            progressbar(async_task, progressbar_index, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
             imgs = default_censor(imgs)
 
         async_task.results = async_task.results + imgs
@@ -323,7 +327,7 @@ def worker():
             imgs = [inpaint_worker.current_task.post_process(x) for x in imgs]
         current_progress = int(base_progress + (100 - preparation_steps) / float(all_steps) * steps)
         if modules.config.default_black_out_nsfw or async_task.black_out_nsfw:
-            progressbar(async_task, current_progress, 'Checking for NSFW content ...')
+            progressbar(async_task, current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
             imgs = default_censor(imgs)
         progressbar(async_task, current_progress, f'Saving image {current_task_id + 1}/{total_count} to system ...')
         img_paths = save_and_log(async_task, height, imgs, task, use_expansion, width, loras, persist_image)
@@ -914,7 +918,7 @@ def worker():
                     with vton_lock:
                         if vton_warper_instance is None or vton_masker_instance is None:
                             # Note: These paths are used for fallback if pre-loading failed
-                            progressbar(async_task, 1, 'Processing...')
+                            progressbar(async_task, 1, 'Loading Virtual Try-On models (Fallback)...')
                             if vton_warper_instance is None:
                                 vton_warper_instance = ShoulderHeightDressWarper(
                                     seg_model_path=seg_model_path,
@@ -957,8 +961,7 @@ def worker():
                         cloth_bgr = cloth_image
                     cv2.imwrite(cloth_path, cloth_bgr)
                     
-                    # Step 1: Run dresss.py (warping)
-                    progressbar(async_task, 1, 'Processing...')
+                    progressbar(async_task, 1, 'Warping cloth onto person (dresss.py)...')
                     dress_output_path = os.path.join(temp_dir, 'result_dress.png')
                     warper.process(person_path, cloth_path, dress_output_path)
                     
@@ -970,8 +973,7 @@ def worker():
                         print("[Virtual Try-On] Warning: Dress mask not found, proceeding without it")
                         dress_mask_path = None
                     
-                    # Step 2: Run masking.py
-                    progressbar(async_task, 1, 'Processing...')
+                    progressbar(async_task, 1, 'Generating final mask (masking.py)...')
                     masking_output_path = os.path.join(temp_dir, 'result_masking.png')
                     masker.process(
                         input_image_path=dress_output_path,
@@ -1350,7 +1352,7 @@ def worker():
                 ip_adapter_path, ip_negative_path, skip_prompt_processing, use_synthetic_refiner)
 
         # Load or unload CNs
-        progressbar(async_task, current_progress, 'Loading control models ...')
+        progressbar(async_task, current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
         pipeline.refresh_controlnets([controlnet_canny_path, controlnet_cpds_path])
         ip_adapter.load_ip_adapter(clip_vision_path, ip_negative_path, ip_adapter_path)
         ip_adapter.load_ip_adapter(clip_vision_path, ip_negative_path, ip_adapter_face_path)
@@ -1361,7 +1363,7 @@ def worker():
         print(f'[Parameters] Steps = {async_task.steps} - {switch}')
 
         # Stage B: Initialization & Preparation
-        progressbar(async_task, current_progress, 'Initializing ...')
+        progressbar(async_task, current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
 
         loras = async_task.loras
         if not skip_prompt_processing:
@@ -1372,7 +1374,7 @@ def worker():
 
         if len(goals) > 0:
             current_progress += 1
-            progressbar(async_task, current_progress, 'Image processing ...')
+            progressbar(async_task, current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
 
         should_enhance = async_task.enhance_checkbox and (async_task.enhance_uov_method != flags.disabled.casefold() or len(async_task.enhance_ctrls) > 0)
 
@@ -1388,7 +1390,7 @@ def worker():
             if direct_return:
                 d = [('Upscale (Fast)', 'upscale_fast', '2x')]
                 if modules.config.default_black_out_nsfw or async_task.black_out_nsfw:
-                    progressbar(async_task, 100, 'Checking for NSFW content ...')
+                    progressbar(async_task, 100, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
                     async_task.uov_input_image = default_censor(async_task.uov_input_image)
                 progressbar(async_task, 100, 'Saving image to system ...')
                 uov_input_image_path = log(async_task.uov_input_image, d, output_format=async_task.output_format)
@@ -1468,7 +1470,7 @@ def worker():
         final_scheduler_name = patch_samplers(async_task)
         print(f'Using {final_scheduler_name} scheduler.')
 
-        async_task.yields.append(['preview', (current_progress, 'Moving model to GPU ...', None)])
+        async_task.yields.append(['preview', (current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s', None)])
 
         processing_start_time = time.perf_counter()
 
@@ -1481,14 +1483,14 @@ def worker():
             async_task.callback_steps += (100 - preparation_steps) / float(all_steps)
             async_task.yields.append(['preview', (
                 int(current_progress + async_task.callback_steps),
-                f'Sampling step {step + 1}/{total_steps}, image {current_task_id + 1}/{total_count} ...', y)])
+                f'Processing... {time.perf_counter() - async_task.start_time:.1f}s', y)])
 
         show_intermediate_results = len(tasks) > 1 or async_task.should_enhance
         persist_image = not async_task.should_enhance or not async_task.save_final_enhanced_image_only
 
         # Stage C: Main Generation Loop (Single Run)
         for current_task_id, task in enumerate(tasks):
-            progressbar(async_task, current_progress, f'Preparing task {current_task_id + 1}/{async_task.image_number} ...')
+            progressbar(async_task, current_progress, f'Processing... {time.perf_counter() - preparation_start_time:.1f}s')
             execution_start_time = time.perf_counter()
 
             try:
@@ -1523,7 +1525,7 @@ def worker():
         # Stage D: Automatic Improvement (Second Pass)
         if 'inpaint' in goals and len(images_to_enhance) > 0 and inpaint_worker.current_task is not None:
             print('[Auto Enhance] Automatically applying Improve Detail to inpaint result...')
-            progressbar(async_task, current_progress, 'Processing...')
+            progressbar(async_task, current_progress, 'Stage D: Improving detail (face, hand, eyes, etc.) ...')
             
             # Take the result from Stage C
             inpaint_result_img = images_to_enhance[0]
