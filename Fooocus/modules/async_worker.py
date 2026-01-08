@@ -912,18 +912,20 @@ def worker():
                     global vton_warper_instance, vton_masker_instance
                     
                     with vton_lock:
-                        if vton_warper_instance is None:
-                            progressbar(async_task, 1, 'Loading Virtual Try-On models (First Time)...')
-                            vton_warper_instance = ShoulderHeightDressWarper(
-                                seg_model_path=seg_model_path,
-                                saree_model_path=saree_model_path
-                            )
-                        if vton_masker_instance is None:
-                            vton_masker_instance = ClothMasker(
-                                model_path=saree_model_path,
-                                onnx_model_path=onnx_model_path,
-                                b2_onnx_path=seg_model_path
-                            )
+                        if vton_warper_instance is None or vton_masker_instance is None:
+                            # Note: These paths are used for fallback if pre-loading failed
+                            progressbar(async_task, 1, 'Loading Virtual Try-On models (Fallback)...')
+                            if vton_warper_instance is None:
+                                vton_warper_instance = ShoulderHeightDressWarper(
+                                    seg_model_path=seg_model_path,
+                                    saree_model_path=saree_model_path
+                                )
+                            if vton_masker_instance is None:
+                                vton_masker_instance = ClothMasker(
+                                    model_path=saree_model_path,
+                                    onnx_model_path=onnx_model_path,
+                                    b2_onnx_path=seg_model_path
+                                )
                     
                     warper = vton_warper_instance
                     masker = vton_masker_instance
@@ -1544,6 +1546,7 @@ def worker():
                     global vton_masker_instance
                     if vton_masker_instance is None:
                         with vton_lock:
+                            # Use stored paths for fallback initialization
                             vton_masker_instance = ClothMasker(
                                 model_path=async_task.masking_saree_model_path,
                                 onnx_model_path=async_task.masking_onnx_model_path,
@@ -1826,5 +1829,37 @@ def worker():
                     del modules.patch.patch_settings[pid]
     pass
 
+
+
+def preload_vton_models():
+    global vton_warper_instance, vton_masker_instance
+    try:
+        import os
+        from modules.virtual_tryon import ShoulderHeightDressWarper, ClothMasker
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        seg_model_path = os.path.join(base_dir, 'models', 'segformer_b2_clothes.onnx')
+        saree_model_path = os.path.join(base_dir, 'models', 'segformer-b3-fashion')
+        onnx_model_path = os.path.join(base_dir, 'models', 'humanparsing', 'parsing_lip.onnx')
+        
+        if os.path.exists(seg_model_path) and os.path.exists(saree_model_path) and os.path.exists(onnx_model_path):
+            print("\n[Fooocus VTON] Pre-loading models for instant generation...")
+            vton_warper_instance = ShoulderHeightDressWarper(
+                seg_model_path=seg_model_path,
+                saree_model_path=saree_model_path
+            )
+            vton_masker_instance = ClothMasker(
+                model_path=saree_model_path,
+                onnx_model_path=onnx_model_path,
+                b2_onnx_path=seg_model_path
+            )
+            print("[Fooocus VTON] Models pre-loaded successfully on GPU.\n")
+        else:
+            print("\n[Fooocus VTON] Models not found, skipping pre-load (will load on first generation).\n")
+    except Exception as e:
+        print(f"\n[Fooocus VTON] Error during pre-loading: {e}\n")
+
+# Pre-load VTON models at module startup
+preload_vton_models()
 
 threading.Thread(target=worker, daemon=True).start()
