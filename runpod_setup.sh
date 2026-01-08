@@ -27,15 +27,19 @@ else
 fi
 
 # 2. Run the environment setup and model download
-# The script handles:
-# - apt-get system dependencies
-# - pip python dependencies
-# - HuggingFace model downloads
 echo "Step 1: Setting up environment and downloading models..."
 python Fooocus/modules/download_small_models.py
 
-# 3. Launch Fooocus
-echo "Step 2: Launching Fooocus..."
+# 3. Fix ONNX Runtime GPU (CUDNN) library links
+echo "Step 2: Linking CUDNN libraries for GPU acceleration..."
+CUDNN_PATH=$(python -c "import nvidia.cudnn; print(nvidia.cudnn.__path__[0])" 2>/dev/null)
+if [ ! -z "$CUDNN_PATH" ]; then
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDNN_PATH/lib
+    echo "✅ LD_LIBRARY_PATH updated with CUDNN."
+fi
+
+# 4. Launch Fooocus
+echo "Step 3: Launching Fooocus..."
 # --listen: allows external connections
 # --port 7865: matches RunPod default exposed port
 # --share: creates a gradio.live link

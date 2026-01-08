@@ -39,6 +39,7 @@ def install_python_dependencies():
         
         # Inference Engines
         "onnxruntime-gpu", # Assuming RunPod has GPU
+        "nvidia-cudnn-cu12", # Fix missing libcudnn.so.8
         
         # CV / Processing
         "mediapipe==0.10.9",
