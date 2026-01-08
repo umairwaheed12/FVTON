@@ -170,26 +170,35 @@ def download_models():
     expansion_dir.mkdir(parents=True, exist_ok=True)
     
     expansion_files = [
-        "config.json",
         "pytorch_model.bin",
-        "special_tokens_map.json",
-        "tokenizer_config.json",
-        "vocab.json"
     ]
     
-    for filename in expansion_files:
-        print(f"   Downloading {filename}...")
-        hf_hub_download(
-            repo_id="lllyasviel/misc",
-            filename=f"fooocus_expansion/{filename}",
-            local_dir=models_dir,
-            local_dir_use_symlinks=False
-        )
-        
-        # Move from downloaded structure to simple structure
-        source_path = models_dir / "fooocus_expansion" / filename
-        if source_path.exists():
-            shutil.move(str(source_path), str(expansion_dir / filename))
+    # 1. Download the model weights from lllyasviel/misc
+    print(f"   Downloading pytorch_model.bin...")
+    hf_hub_download(
+        repo_id="lllyasviel/misc",
+        filename="fooocus_expansion/pytorch_model.bin",
+        local_dir=models_dir,
+        local_dir_use_symlinks=False
+    )
+    # Move it
+    source_bin = models_dir / "fooocus_expansion" / "pytorch_model.bin"
+    if source_bin.exists():
+        shutil.move(str(source_bin), str(expansion_dir / "pytorch_model.bin"))
+
+    # 2. Download config and tokenizer from standard GPT-2 (fallback)
+    print(f"   Downloading config and tokenizer (GPT-2 base)...")
+    gpt2_files = ["config.json", "vocab.json", "merges.txt", "tokenizer.json", "tokenizer_config.json"]
+    for filename in gpt2_files:
+        try:
+            hf_hub_download(
+                repo_id="openai-community/gpt2",
+                filename=filename,
+                local_dir=expansion_dir,
+                local_dir_use_symlinks=False
+            )
+        except Exception as e:
+            print(f"   ⚠ Could not download {filename}: {e}")
 
     if (models_dir / "fooocus_expansion").exists():
         shutil.rmtree(models_dir / "fooocus_expansion")
