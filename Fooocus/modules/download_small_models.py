@@ -174,17 +174,20 @@ def download_models():
     ]
     
     # 1. Download the model weights from lllyasviel/misc
-    print(f"   Downloading pytorch_model.bin...")
-    hf_hub_download(
-        repo_id="lllyasviel/misc",
-        filename="fooocus_expansion/pytorch_model.bin",
-        local_dir=models_dir,
-        local_dir_use_symlinks=False
-    )
-    # Move it
-    source_bin = models_dir / "fooocus_expansion" / "pytorch_model.bin"
-    if source_bin.exists():
-        shutil.move(str(source_bin), str(expansion_dir / "pytorch_model.bin"))
+    print(f"   Downloading pytorch_model.bin (from fooocus_expansion.bin)...")
+    try:
+        hf_hub_download(
+            repo_id="lllyasviel/misc",
+            filename="fooocus_expansion.bin",
+            local_dir=models_dir,
+            local_dir_use_symlinks=False
+        )
+        # Move and rename
+        source_bin = models_dir / "fooocus_expansion.bin"
+        if source_bin.exists():
+            shutil.move(str(source_bin), str(expansion_dir / "pytorch_model.bin"))
+    except Exception as e:
+        print(f"   ⚠ Failed to download weights: {e}")
 
     # 2. Download config and tokenizer from standard GPT-2 (fallback)
     print(f"   Downloading config and tokenizer (GPT-2 base)...")
