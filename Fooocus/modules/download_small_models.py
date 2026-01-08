@@ -44,7 +44,7 @@ def install_python_dependencies():
         "ultralytics",
         
         # Inference Engines
-        "onnxruntime-gpu==1.18.1", 
+        "onnxruntime-gpu==1.19.2", 
         "nvidia-cudnn-cu12", # Let torch/pip resolve the version (usually 9.x)
         
         # CV / Processing
