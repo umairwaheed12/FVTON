@@ -6,6 +6,11 @@
 echo "==========================================="
 echo "   FVTON RUNPOD SETUP & LAUNCH SCRIPT      "
 echo "==========================================="
+echo "TIP: To keep this running in the background, run this script inside a 'tmux' session."
+echo "     Usage: tmux new -s fvton"
+echo "            bash runpod_setup.sh"
+echo "            (Press Ctrl+B then D to detach)"
+echo ""
 
 # 1. Check if we are already in the project directory
 if [[ "$PWD" == *"/FVTON"* ]]; then
