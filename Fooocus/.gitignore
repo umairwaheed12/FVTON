@@ -1,0 +1,17 @@
+# Exclude Windows-specific environment
+python_embeded/
+
+# Exclude models (download them on RunPod instead)
+models/*
+!models/segformer-b3-fashion/
+
+# Exclude generated images
+outputs/
+
+# Exclude temporary and system files
+__pycache__/
+*.bat
+*.exe
+.DS_Store
+*.tmp
+logs/

@@ -1,17 +1,23 @@
 # Exclude Windows-specific environment
 python_embeded/
+__pycache__/
 
 # Exclude models (download them on RunPod instead)
-models/*
-!models/segformer-b3-fashion/
+Fooocus/models/*
+!Fooocus/models/segformer-b3-fashion/
 
 # Exclude generated images
-outputs/
+Fooocus/outputs/
 
 # Exclude temporary and system files
-__pycache__/
-*.bat
-*.exe
-.DS_Store
 *.tmp
+.DS_Store
 logs/
+
+# Ensure scripts and configs are included
+# (They are included by default, but listed here for clarity)
+# config.txt
+# run.bat
+# run_anime.bat
+# run_realistic.bat
+# config_modification_tutorial.txt
