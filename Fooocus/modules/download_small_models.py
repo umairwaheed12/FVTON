@@ -45,7 +45,7 @@ def install_python_dependencies():
         
         # Inference Engines
         "onnxruntime-gpu==1.18.1", 
-        "nvidia-cudnn-cu12==8.9.2.26", # Specifically for libcudnn.so.8
+        "nvidia-cudnn-cu12", # Let torch/pip resolve the version (usually 9.x)
         
         # CV / Processing
         "mediapipe==0.10.9",

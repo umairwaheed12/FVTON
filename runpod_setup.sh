@@ -44,22 +44,25 @@ if [ ! -z "$NVIDIA_LIBS" ]; then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NVIDIA_LIBS
     echo "✅ LD_LIBRARY_PATH updated."
     
-    # Fallback: link libcudnn.so.8 if it exists under a different name or needs a direct link
-    CUDNN_8_PATH=$(find $NVIDIA_LIBS -name "libcudnn.so.8" | head -n 1)
-    if [ -z "$CUDNN_8_PATH" ]; then
-        echo "   ⚠ libcudnn.so.8 not found in nvidia directory, searching system..."
-        CUDNN_8_PATH=$(find /usr/local/ -name "libcudnn.so.8" | head -n 1)
-    fi
+    # 3.1 Aggressive Symlinking: Provide .so.8 names for .so.9 files
+    echo "   🔗 Creating .so.8 symlinks for CUDNN 9 compatibility..."
+    python3 -c "import os; libs = '$NVIDIA_LIBS'.split(':'); 
+for lib_dir in libs:
+    if not os.path.exists(lib_dir): continue
+    for f in os.listdir(lib_dir):
+        if f.endswith('.so.9'):
+            target = os.path.join(lib_dir, f.replace('.so.9', '.so.8'))
+            if not os.path.exists(target):
+                os.symlink(os.path.join(lib_dir, f), target)
+                print(f'      linked {f} -> {os.path.basename(target)}')
+" 2>/dev/null
     
+    # Additional check for the main libcudnn.so.8
+    CUDNN_8_PATH=$(find $NVIDIA_LIBS -name "libcudnn.so.8" | head -n 1)
     if [ ! -z "$CUDNN_8_PATH" ]; then
-        echo "   ✅ Found libcudnn.so.8 at $CUDNN_8_PATH"
+        echo "   ✅ Verified libcudnn.so.8 is available."
     else
-        echo "   ⚠ Could not find libcudnn.so.8. Attempting to symlink from 9 as last resort..."
-        CUDNN_9_PATH=$(find $NVIDIA_LIBS -name "libcudnn.so.9" | head -n 1)
-        if [ ! -z "$CUDNN_9_PATH" ]; then
-            ln -sf $CUDNN_9_PATH $(dirname $CUDNN_9_PATH)/libcudnn.so.8
-            echo "   ✅ Symlinked libcudnn.so.9 to libcudnn.so.8"
-        fi
+        echo "   ⚠ Warning: libcudnn.so.8 still not found after symlinking."
     fi
 fi
 
