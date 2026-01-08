@@ -190,7 +190,7 @@ def download_models():
         print(f"   ⚠ Failed to download weights: {e}")
 
     # 2. Download config and tokenizer from standard GPT-2 (fallback)
-    print(f"   Downloading config and tokenizer (GPT-2 base)...")
+    print(f"   Downloading config and tokenizer (GPT-2 base) + positive.txt...")
     gpt2_files = ["config.json", "vocab.json", "merges.txt", "tokenizer.json", "tokenizer_config.json"]
     for filename in gpt2_files:
         try:
@@ -202,6 +202,17 @@ def download_models():
             )
         except Exception as e:
             print(f"   ⚠ Could not download {filename}: {e}")
+
+    # 3. Download positive.txt from lllyasviel/misc
+    try:
+        hf_hub_download(
+            repo_id="lllyasviel/misc",
+            filename="positive.txt",
+            local_dir=expansion_dir,
+            local_dir_use_symlinks=False
+        )
+    except Exception as e:
+        print(f"   ⚠ Could not download positive.txt: {e}")
 
     # Failsafe: Ensure config.json exists
     config_path = expansion_dir / "config.json"

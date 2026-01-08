@@ -3,8 +3,12 @@ python_embeded/
 __pycache__/
 
 # Exclude models (download them on RunPod instead)
-Fooocus/models/*
-!Fooocus/models/segformer-b3-fashion/
+Fooocus/models/
+*.safetensors
+*.bin
+*.onnx
+*.pth
+*.pt
 
 # Exclude generated images
 Fooocus/outputs/
