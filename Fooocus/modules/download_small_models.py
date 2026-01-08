@@ -145,72 +145,67 @@ def download_models():
     # ------------------------------------------------------------------
     # 4. SegFormer B2 Clothes ONNX (from mattmdjaga/segformer_b2_clothes)
     # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
-    # 4. SegFormer B2 Clothes ONNX (from mattmdjaga/segformer_b2_clothes)
-    # ------------------------------------------------------------------
-    print("\n[4/4] Downloading SegFormer B2 Clothes (ONNX)...")
+    print("\n[4/8] Downloading SegFormer B2 Clothes (ONNX)...")
     target_b2 = models_dir / "segformer_b2_clothes.onnx"
     
     if not target_b2.exists():
-        # The file in the repo is 'onnx/model.onnx'
-        hf_hub_download(
-            repo_id="mattmdjaga/segformer_b2_clothes",
-            filename="onnx/model.onnx",
-            local_dir=models_dir,
-            local_dir_use_symlinks=False
-        )
-        
-        source_b2 = models_dir / "onnx" / "model.onnx"
-        if source_b2.exists():
-            shutil.move(str(source_b2), str(target_b2))
-            try:
-                shutil.rmtree(models_dir / "onnx")
-            except:
-                pass
+        print("   File missing. Downloading from mattmdjaga/segformer_b2_clothes...")
+        try:
+            # The file in the repo is 'onnx/model.onnx'
+            downloaded_path = hf_hub_download(
+                repo_id="mattmdjaga/segformer_b2_clothes",
+                filename="onnx/model.onnx",
+                local_dir=models_dir,
+                local_dir_use_symlinks=False
+            )
+            print(f"   Downloaded to temp: {downloaded_path}")
+            
+            # Ensure it moves to the root of models/
+            if os.path.exists(downloaded_path) and str(downloaded_path) != str(target_b2):
+                shutil.move(str(downloaded_path), str(target_b2))
+                print(f"   Moved to: {target_b2}")
+            
+            # Cleanup temp folder if created
+            temp_onnx_dir = models_dir / "onnx"
+            if temp_onnx_dir.exists():
+                shutil.rmtree(temp_onnx_dir)
+                print("   Cleaned up temp onnx directory.")
+        except Exception as e:
+            print(f"❌ Failed to download SegFormer B2: {e}")
     else:
         print(f"   ✓ segformer_b2_clothes.onnx already exists.")
-            
-    print(f"✓ Downloaded to: {target_b2}")
-    
+
+    if not target_b2.exists():
+        print(f"⚠ CRITICAL: {target_b2} is still missing!")
+
     # ------------------------------------------------------------------
     # 5. Fooocus Expansion (from lllyasviel/misc)
     # ------------------------------------------------------------------
-    print("\n[5/5] Downloading Fooocus Expansion model...")
+    print("\n[5/8] Downloading Fooocus Expansion model...")
     expansion_dir = models_dir / "prompt_expansion" / "fooocus_expansion"
     expansion_dir.mkdir(parents=True, exist_ok=True)
     
-    # 1. Download the model weights from lllyasviel/misc
     weights_path = expansion_dir / "pytorch_model.bin"
     if not weights_path.exists():
-        print(f"   Downloading pytorch_model.bin (from fooocus_expansion.bin)...")
+        print(f"   Downloading pytorch_model.bin (from lllyasviel/misc)...")
         try:
-            hf_hub_download(
+            downloaded = hf_hub_download(
                 repo_id="lllyasviel/misc",
                 filename="fooocus_expansion.bin",
                 local_dir=models_dir,
                 local_dir_use_symlinks=False
             )
-            # Move and rename
-            source_bin = models_dir / "fooocus_expansion.bin"
-            if source_bin.exists():
-                shutil.move(str(source_bin), str(weights_path))
+            shutil.move(str(downloaded), str(weights_path))
+            print(f"   Successfully placed expansion weights.")
         except Exception as e:
             print(f"   ⚠ Failed to download weights: {e}")
     else:
         print(f"   ✓ pytorch_model.bin already exists.")
 
-    if (models_dir / "fooocus_expansion.bin").exists():
-        os.remove(models_dir / "fooocus_expansion.bin")
-
-    if (models_dir / "fooocus_expansion").exists():
-        shutil.rmtree(models_dir / "fooocus_expansion")
-
-    print(f"✓ Downloaded to: {expansion_dir}")
-
     # ------------------------------------------------------------------
     # 6. LoRAs
     # ------------------------------------------------------------------
-    print("\n[6/6] Downloading LoRAs...")
+    print("\n[6/8] Downloading LoRAs...")
     loras_dir = models_dir / "loras"
     loras_dir.mkdir(parents=True, exist_ok=True)
     
@@ -219,7 +214,6 @@ def download_models():
     if not btw_lora_path.exists():
         print("   Downloading BetterThanWords-merged-SDXL-LoRA-v3.safetensors...")
         try:
-             # Try via HF Hub first if it was a single file repo, but since it's a specific file in a repo:
              hf_hub_download(
                 repo_id="AiWise/BetterThanWords-merged-SDXL-LoRA-v3",
                 filename="BetterThanWords-merged-SDXL-LoRA-v3.safetensors",
@@ -229,7 +223,8 @@ def download_models():
              print("   ✓ Downloaded BetterThanWords LoRA.")
         except Exception as e:
             print(f"   ⚠ Failed to download LoRA via API: {e}")
-            # Fallback or just let it be (user might need to upload manual if it fails)
+    else:
+        print(f"   ✓ BetterThanWords LoRA already exists.")
 
     print("\n" + "="*50)
     print("ALL DOWNLOADS COMPLETE")
@@ -240,6 +235,31 @@ def download_models():
     print(f"2. MASKING_SEG_MODEL_PATH: {segformer_b3_path}")
     print(f"3. MASKING_Onnx_MODEL_PATH: {target_path}")
     print(f"4. MOONDREAM_MODEL_PATH: {moondream_path}")
+    print("="*50)
+
+    print("\n" + "="*50)
+    print("FINAL MODEL VERIFICATION")
+    print("="*50)
+    required_files = [
+        target_b2,
+        segformer_b3_path / "config.json",
+        target_path,
+        weights_path,
+        btw_lora_path
+    ]
+    
+    all_ok = True
+    for f in required_files:
+        if f.exists():
+            print(f"✅ FOUND: {f.name}")
+        else:
+            print(f"❌ MISSING: {f}")
+            all_ok = False
+            
+    if all_ok:
+        print("\n🚀 ALL CRITICAL MODELS VERIFIED. READY TO LAUNCH.")
+    else:
+        print("\n⚠ WARNING: SOME MODELS ARE MISSING. VTON MAY FAIL.")
     print("="*50)
 
 if __name__ == "__main__":
