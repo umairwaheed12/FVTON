@@ -19,6 +19,12 @@ def install_system_dependencies():
 
 def install_python_dependencies():
     """Install required Python packages."""
+    print("⏳ Uninstalling potential conflicting packages...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "onnxruntime", "onnxruntime-gpu"])
+    except:
+        pass
+
     print("⏳ Installing Python dependencies...")
     
     # Superset of requirements from all scripts
@@ -38,8 +44,8 @@ def install_python_dependencies():
         "ultralytics",
         
         # Inference Engines
-        "onnxruntime-gpu", # Assuming RunPod has GPU
-        "nvidia-cudnn-cu12", # Fix missing libcudnn.so.8
+        "onnxruntime-gpu==1.18.1", 
+        "nvidia-cudnn-cu12==8.9.2.26", # Specifically for libcudnn.so.8
         
         # CV / Processing
         "mediapipe==0.10.9",
